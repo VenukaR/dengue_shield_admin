@@ -16,8 +16,8 @@ const DashboardPage: React.FC = () => {
   const casesData = [20, 25, 22, 28, 32, 30, 35];
 
   return (
-    <ProtectedRoute requireAuth={false}>
-      <div className="flex h-screen bg-gray-50">
+    <ProtectedRoute requireAuth={true}>
+      <div className="flex h-screen bg-white">
         {/* Sidebar */}
         <Sidebar />
 

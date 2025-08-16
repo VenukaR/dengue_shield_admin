@@ -11,9 +11,9 @@ const SignupPage: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
     password: '',
     confirmPassword: '',
+    role: 'admin',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -40,10 +40,10 @@ const SignupPage: React.FC = () => {
   };
 
   const validateForm = () => {
-    const { name, email, phone, password, confirmPassword } = formData;
+    const { name, email, password, confirmPassword } = formData;
 
     // Check if all fields are filled
-    if (!name || !email || !phone || !password || !confirmPassword) {
+    if (!name || !email || !password || !confirmPassword) {
       return 'Please fill in all fields';
     }
 
@@ -64,12 +64,6 @@ const SignupPage: React.FC = () => {
     
     if (!isGovEmail) {
       return 'Please use a government email address (.gov, government, dept, or ministry domain)';
-    }
-
-    // Validate phone number
-    const phoneRegex = /^[+]?[\d\s\-\(\)]{10,}$/;
-    if (!phoneRegex.test(phone)) {
-      return 'Please enter a valid phone number (at least 10 digits)';
     }
 
     // Validate password strength
@@ -116,9 +110,9 @@ const SignupPage: React.FC = () => {
         setFormData({
           name: '',
           email: '',
-          phone: '',
           password: '',
           confirmPassword: '',
+          role: 'admin',
         });
         // Redirect to login after 2 seconds
         setTimeout(() => {
@@ -136,7 +130,7 @@ const SignupPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <LoadingSpinner size="large" />
       </div>
     );
@@ -211,20 +205,20 @@ const SignupPage: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                Role
               </label>
-              <input
-                id="phone"
-                name="phone"
-                type="tel"
-                autoComplete="tel"
-                required
-                value={formData.phone}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                placeholder="+1 (555) 123-4567"
-              />
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              >
+                <option value="admin">Admin</option>
+                <option value="officer">Officer</option>
+                <option value="supervisor">Supervisor</option>
+              </select>
             </div>
 
             <div>

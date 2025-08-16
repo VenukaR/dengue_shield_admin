@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Mock user database - in a real app, this would be a proper database
-const users = [
-  {
-    id: '1',
-    name: 'John Doe',
-    email: 'john.doe@health.gov',
-    phone: '+1-555-0123',
-    password: 'hashedPassword123', // In real app, this would be properly hashed
-  },
-];
+const BACKEND_URL = 'http://16.171.60.189:5000';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,27 +14,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user (in real app, compare hashed passwords)
-    const user = users.find(u => u.email === email && u.password === password);
+    // Call external backend API
+    const response = await fetch(`${BACKEND_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password
+      })
+    });
 
-    if (!user) {
+    const data = await response.json();
+
+    if (!response.ok) {
       return NextResponse.json(
-        { message: 'Invalid email or password' },
-        { status: 401 }
+        { message: data.message || 'Login failed' },
+        { status: response.status }
       );
     }
 
-    // Generate token (in real app, use proper JWT with expiration)
-    const token = `token_${user.id}_${Date.now()}`;
-
-    // Return user data without password
-    const { password: _, ...userWithoutPassword } = user;
-
+    // Return success response with token and role
     return NextResponse.json({
       message: 'Login successful',
-      token,
-      user: userWithoutPassword,
-    });
+      token: data.token,
+      role: data.role
+    }, { status: 200 });
 
   } catch (error) {
     console.error('Login error:', error);

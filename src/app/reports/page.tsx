@@ -6,8 +6,8 @@ import Sidebar from '@/components/Sidebar';
 
 const ReportsPage: React.FC = () => {
   return (
-    <ProtectedRoute requireAuth={false}>
-      <div className="flex h-screen bg-gray-50">
+    <ProtectedRoute requireAuth={true}>
+      <div className="flex h-screen bg-white">
         <Sidebar />
         <div className="flex-1 ml-64">
           <header className="bg-white border-b border-gray-200 px-6 py-4">

@@ -6,7 +6,7 @@ interface User {
   id: string;
   name: string;
   email: string;
-  phone: string;
+  role?: string;
 }
 
 interface AuthContextType {
@@ -22,10 +22,46 @@ interface AuthContextType {
 interface SignupData {
   name: string;
   email: string;
-  phone: string;
   password: string;
   confirmPassword: string;
+  role?: string;
 }
+
+// Utility function to decode JWT token
+const decodeToken = (token: string) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error('Error decoding token:', error);
+    return null;
+  }
+};
+
+// Safe localStorage access
+const safeLocalStorage = {
+  getItem: (key: string) => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(key);
+    }
+    return null;
+  },
+  setItem: (key: string, value: string) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, value);
+    }
+  },
+  removeItem: (key: string) => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(key);
+    }
+  }
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -45,37 +81,60 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
+
+  // Ensure we're on the client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Check for existing token on mount
   useEffect(() => {
+    if (!isClient) return;
+    
     const checkAuth = async () => {
       try {
-        const storedToken = localStorage.getItem('auth_token');
-        const storedUser = localStorage.getItem('auth_user');
+        const storedToken = safeLocalStorage.getItem('auth_token');
+        const storedUser = safeLocalStorage.getItem('auth_user');
         
-        if (storedToken && storedUser) {
-          // Validate token with API
-          const isValid = await validateToken(storedToken);
-          if (isValid) {
-            setToken(storedToken);
-            setUser(JSON.parse(storedUser));
+        if (storedToken) {
+          // Decode token to check expiration
+          const tokenPayload = decodeToken(storedToken);
+          
+          if (tokenPayload && tokenPayload.exp && tokenPayload.exp * 1000 > Date.now()) {
+            // Token is valid and not expired
+            if (storedUser) {
+              setToken(storedToken);
+              setUser(JSON.parse(storedUser));
+            } else {
+              // Create user from token if stored user is missing
+              const user = {
+                id: tokenPayload.email,
+                name: tokenPayload.name || '',
+                email: tokenPayload.email,
+                role: tokenPayload.role
+              };
+              localStorage.setItem('auth_user', JSON.stringify(user));
+              setToken(storedToken);
+              setUser(user);
+            }
           } else {
-            // Token invalid, clear storage
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('auth_user');
+            // Token expired or invalid, clear storage
+            safeLocalStorage.removeItem('auth_token');
+            safeLocalStorage.removeItem('auth_user');
           }
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_user');
+        safeLocalStorage.removeItem('auth_token');
+        safeLocalStorage.removeItem('auth_user');
       } finally {
         setIsLoading(false);
       }
     };
 
     checkAuth();
-  }, []);
+  }, [isClient]);
 
   const validateToken = async (token: string): Promise<boolean> => {
     try {
@@ -111,11 +170,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const data = await response.json();
 
       if (response.ok) {
-        const { token, user } = data;
+        const { token, role } = data;
         
-        // Store in localStorage
-        localStorage.setItem('auth_token', token);
-        localStorage.setItem('auth_user', JSON.stringify(user));
+        // Decode token to get user information
+        const tokenPayload = decodeToken(token);
+        
+        // Create user object from token data and API response
+        const user = {
+          id: tokenPayload?.email || email,
+          name: tokenPayload?.name || '',
+          email: tokenPayload?.email || email,
+          role: role || tokenPayload?.role
+        };
+        
+        // Store token in localStorage
+        safeLocalStorage.setItem('auth_token', token);
+        safeLocalStorage.setItem('auth_user', JSON.stringify(user));
         
         // Update state
         setToken(token);
@@ -156,8 +226,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         body: JSON.stringify({
           name: userData.name,
           email: userData.email,
-          phone: userData.phone,
           password: userData.password,
+          role: userData.role || 'admin',
         }),
       });
 
@@ -177,8 +247,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
+    safeLocalStorage.removeItem('auth_token');
+    safeLocalStorage.removeItem('auth_user');
     setToken(null);
     setUser(null);
   };

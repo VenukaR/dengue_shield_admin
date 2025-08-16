@@ -1,24 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Mock user database - in a real app, this would be a proper database
-let users = [
-  {
-    id: '1',
-    name: 'John Doe',
-    email: 'john.doe@health.gov',
-    phone: '+1-555-0123',
-    password: 'hashedPassword123',
-  },
-];
+const BACKEND_URL = 'http://16.171.60.189:5000';
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, phone, password } = await request.json();
+    const { name, email, password, role = 'admin' } = await request.json();
 
     // Validate input
-    if (!name || !email || !phone || !password) {
+    if (!name || !email || !password) {
       return NextResponse.json(
-        { message: 'All fields are required' },
+        { message: 'Name, email, and password are required' },
         { status: 400 }
       );
     }
@@ -28,37 +19,42 @@ export async function POST(request: NextRequest) {
                      email.toLowerCase().includes('government') ||
                      email.toLowerCase().includes('dept') ||
                      email.toLowerCase().includes('ministry');
-    
+
     if (!isGovEmail) {
       return NextResponse.json(
-        { message: 'Please use a government email address' },
+        { message: 'Only government email addresses are allowed' },
         { status: 400 }
       );
     }
 
-    // Check if user already exists
-    const existingUser = users.find(u => u.email === email);
-    if (existingUser) {
+    // Call external backend API
+    const response = await fetch(`${BACKEND_URL}/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+        role
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
       return NextResponse.json(
-        { message: 'User with this email already exists' },
-        { status: 409 }
+        { message: data.message || 'Signup failed' },
+        { status: response.status }
       );
     }
 
-    // Create new user (in real app, hash the password)
-    const newUser = {
-      id: (users.length + 1).toString(),
-      name,
-      email,
-      phone,
-      password, // In real app, hash this password
-    };
-
-    users.push(newUser);
-
+    // Return success response
     return NextResponse.json({
-      message: 'Account created successfully',
-    });
+      message: 'Admin account created successfully',
+      user: data.user || { name, email, role }
+    }, { status: 201 });
 
   } catch (error) {
     console.error('Signup error:', error);
